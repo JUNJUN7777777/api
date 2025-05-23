@@ -40,39 +40,40 @@ app.use((err, req, res, next) => {
     res.cc(err)
 })
 
-// 爬虫数据 - 初始化为空数组
-let crawlData = []
+// // 爬虫数据 - 初始化为空数组
+// let crawlData = []
 
-// 爬虫函数 - 改为异步函数
-async function fetchData() {
-    try {
-        const url = "https://www.stats.gov.cn/sj/sjjd/202302/t20230202_1896584.html"
-        const response = await axios.get(url)
-        const $ = cheerio.load(response.data)
-        const aBox = $(".TRS_Editor .MsoNormal:eq(4)")
+// // 爬虫函数 - 改为异步函数
+// async function fetchData() {
+//     try {
+//         const url = "https://www.stats.gov.cn/sj/sjjd/202302/t20230202_1896584.html"
+//         const response = await axios.get(url)
+//         const $ = cheerio.load(response.data)
+//         const aBox = $(".TRS_Editor .MsoNormal:eq(4)")
 
-        crawlData = []
-        aBox.each((index, item) => {
-            try {
-                const key = $(item).find("span").text()
-                const value = key.substring(31, 37)
-                crawlData.push({ value })
-            } catch (error) {
-                console.log("解析错误:", error)
-            }
-        })
+//         crawlData = []
+//         aBox.each((index, item) => {
+//             try {
+//                 const key = $(item).find("span").text()
+//                 const value = key.substring(31, 37)
+//                 crawlData.push({ value })
+//             } catch (error) {
+//                 console.log("解析错误:", error)
+//             }
+//         })
 
-        console.log("爬虫完成，数据已更新")
-    } catch (error) {
-        console.error("爬虫失败:", error.message)
-    }
-}
+//         console.log("爬虫完成，数据已更新")
+//     } catch (error) {
+//         console.error("爬虫失败:", error.message)
+//     }
+// }
 
 // 定义爬虫路由 - 放在全局作用域
 app.get("/api/cheerio", (req, res) => {
     res.send({
         code: 200,
-        data: crawlData // 返回已抓取的数据
+        // data: crawlData // 返回已抓取的数据
+        data: '13309'
     })
 })
 
@@ -81,9 +82,9 @@ app.listen(PORT, () => {
     console.log(`服务器启动成功：http://localhost:${PORT}`)
 
     // 服务器启动后再执行爬虫
-    fetchData().catch(err => {
-        console.error("初始爬虫失败:", err)
-    })
+    // fetchData().catch(err => {
+    //     console.error("初始爬虫失败:", err)
+    // })
 
     // 定时更新数据（可选）
     // setInterval(fetchData, 60 * 60 * 1000) // 每小时更新一次
