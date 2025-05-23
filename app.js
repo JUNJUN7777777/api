@@ -1,20 +1,21 @@
 const express = require('express')
 const app = express()
+const PORT = process.env.PORT || 595
 
+// 中间件和依赖
 const joi = require("joi")
+const cors = require("cors")
+const expressJWT = require("express-jwt")
+const secretKEY = "itheima No1 ^_^"
+const cheerio = require('cheerio');
+const axios = require("axios")
 
+// 中间件设置
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
-
-
-const cors = require("cors")
 app.use(cors())
 
-// const bodyParser = require('body-parser')
-// app.use(bodyParser.urlencoded({ extended: false }))
-// app.use(bodyParser.json())
-
-//封装错误的中间件函数
+// 错误处理中间件
 app.use((req, res, next) => {
     res.cc = function (err, status = 400) {
         res.send({ status, message: err instanceof Error ? err.message : err })
@@ -22,89 +23,68 @@ app.use((req, res, next) => {
     next()
 })
 
-//Token
-const secretKEY = "itheima No1 ^_^"
-const expressJWT = require("express-jwt")
+// JWT认证中间件
 app.use(expressJWT.expressjwt({ secret: secretKEY, algorithms: ["HS256"] }).unless({ path: [/^\/api\//] }))
 
-// 中间件要在路由前面
-//admin登录注册
-const router = require("./router/router")
-app.use("/api", router)
-//admin信息
-const routerAdmininfo = require("./router/admin")
-app.use("/admin", routerAdmininfo)
-//管理员、客户
-const routerUserinfo = require("./router/userinfo")
-app.use("/api/my", routerUserinfo)
-//房型、订单
-const routerOrderinfo = require("./router/order")
-app.use("/api/order", routerOrderinfo)
-//酒店信息
-const routerHouseinfo = require("./router/houseinfo")
-app.use("/api/house", routerHouseinfo)
+// 路由
+app.use("/api", require("./router/router"))
+app.use("/admin", require("./router/admin"))
+app.use("/api/my", require("./router/userinfo"))
+app.use("/api/order", require("./router/order"))
+app.use("/api/house", require("./router/houseinfo"))
 
-//错误级别的中间件
+// 错误处理
 app.use((err, req, res, next) => {
-    //注册表单出错
     if (err instanceof joi.ValidationError) return res.cc(err)
-    //token出错
     if (err.name === "UnauthorizedError") return res.cc("身份认证失败")
-    //未知错误
     res.cc(err)
 })
 
-//cheerio爬虫
-const cheerio = require('cheerio');
-const fs = require("fs")
-const axios = require("axios")
-const $ = cheerio.load('<h2 class="title">Hello world</h2>');
-//爬虫的网站
-var url = "https://www.stats.gov.cn/sj/sjjd/202302/t20230202_1896584.html"
-axios.get(url).then(function (response) {
-    try {
-        // console.log(response)
-        getData(response.data)
-    } catch (e) {
-        console.error(e.message)
-    }
-})
-    .catch(function (error) {
-        // handle error
-        console.log(error)
-    })
+// 爬虫数据 - 初始化为空数组
+let crawlData = []
 
-function getData(data) {
-    //将获取到的html结构赋值给$
-    const $ = cheerio.load(data)
-    var aBox = $(".TRS_Editor .MsoNormal:eq(4)")
-    // console.log(aBox.data)
-    var arr = []
-    aBox.each((index, item) => {
-        try {
-            var key = $(item).find("span").text()
-            var value = key.substring(31, 37)
-        } catch (error) {
-            console.log(error)
-        }
-        arr.push({
-            value,
+// 爬虫函数 - 改为异步函数
+async function fetchData() {
+    try {
+        const url = "https://www.stats.gov.cn/sj/sjjd/202302/t20230202_1896584.html"
+        const response = await axios.get(url)
+        const $ = cheerio.load(response.data)
+        const aBox = $(".TRS_Editor .MsoNormal:eq(4)")
+
+        crawlData = []
+        aBox.each((index, item) => {
+            try {
+                const key = $(item).find("span").text()
+                const value = key.substring(31, 37)
+                crawlData.push({ value })
+            } catch (error) {
+                console.log("解析错误:", error)
+            }
         })
-    })
-    app.get("/api/cheerio", (req, res) => {
-        res.send({
-            code: 200,
-            data: arr
-        })
-    })
-    // fs.writeFile(__dirname + "/content.txt", JSON.stringify(arr), (err) =>
-    //     console.log(err)
-    // )
-    // console.log(arr)
+
+        console.log("爬虫完成，数据已更新")
+    } catch (error) {
+        console.error("爬虫失败:", error.message)
+    }
 }
 
-const PORT = process.env.PORT || 595;
+// 定义爬虫路由 - 放在全局作用域
+app.get("/api/cheerio", (req, res) => {
+    res.send({
+        code: 200,
+        data: crawlData // 返回已抓取的数据
+    })
+})
 
+// 启动服务器
 app.listen(PORT, () => {
-    console.log(`服务器启动成功：http://localhost:${PORT}`);
-});
+    console.log(`服务器启动成功：http://localhost:${PORT}`)
+
+    // 服务器启动后再执行爬虫
+    fetchData().catch(err => {
+        console.error("初始爬虫失败:", err)
+    })
+
+    // 定时更新数据（可选）
+    // setInterval(fetchData, 60 * 60 * 1000) // 每小时更新一次
+})
