@@ -103,6 +103,8 @@ function getData(data) {
     // console.log(arr)
 }
 
-app.listen(595, () => {
-    console.log('端口信息http://127.0.0.1')
-})
+const PORT = process.env.PORT || 595;
+
+app.listen(PORT, () => {
+    console.log(`服务器启动成功：http://localhost:${PORT}`);
+});
